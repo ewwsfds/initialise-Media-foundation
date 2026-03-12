@@ -6,6 +6,12 @@
 #include <mferror.h>
 #include <iostream>
 
+
+#include <d3d11.h>
+#include <dxgi1_2.h>       // for DXGI device manager
+
+
+
 int main() {
     HRESULT hr = S_OK;
 
@@ -26,14 +32,52 @@ int main() {
     }
     std::cout << "Media Foundation started\n";
 
+
+    // Create a D3D11 device 
+    ID3D11Device* d3dDevice = nullptr;
+    ID3D11DeviceContext* d3dContext = nullptr;
+    D3D_FEATURE_LEVEL featureLevel;
+
+     hr = D3D11CreateDevice(
+        nullptr,
+        D3D_DRIVER_TYPE_HARDWARE,
+        nullptr,
+        D3D11_CREATE_DEVICE_VIDEO_SUPPORT,
+        nullptr,
+        0,
+        D3D11_SDK_VERSION,
+        &d3dDevice,
+        &featureLevel,
+        &d3dContext
+    );
+
+    // Create a DXGI Device Manager for Media Foundation
+    IMFDXGIDeviceManager* dxgiManager = nullptr;
+    UINT resetToken = 0;
+
+    hr = MFCreateDXGIDeviceManager(&resetToken, &dxgiManager);
+    hr = dxgiManager->ResetDevice(d3dDevice, resetToken);
+
+
+
+
     // 3️⃣ Open file
+
+    //but tell first Source Reader to use DXGI surfaces
+    IMFAttributes* attrs = nullptr;
+    MFCreateAttributes(&attrs, 1);
+
+    attrs->SetUnknown(MF_SOURCE_READER_D3D_MANAGER, dxgiManager);
+    attrs->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE);
+
+
     IMFSourceReader* reader = nullptr;
 
     hr = MFCreateSourceReaderFromURL(L"video.mp4", nullptr, &reader);
     if (FAILED(hr)) {
         std::cout << "Failed to open video.mp4\n";
     }
-
+    attrs->Release();
     std::cout << "Opened video file\n";
 
     // 4️⃣ Configure decoder output format (NV12)
@@ -90,7 +134,21 @@ int main() {
         }
 
         if (sample) {
+
+            IMFMediaBuffer* buffer = nullptr;
+            sample->ConvertToContiguousBuffer(&buffer);
+
+            ID3D11Texture2D* tex = nullptr;
+            hr = buffer->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
+
+            if (SUCCEEDED(hr))
+            {
+                // tex is your GPU NV12 texture — ready for rendering
+                tex->Release();
+            }
+
             std::cout << "Frame timestamp: " << timestamp << "\n";
+            buffer->Release();
             sample->Release();
         }
         else {
