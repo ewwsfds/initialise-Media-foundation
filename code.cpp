@@ -66,35 +66,37 @@ int main() {
     DWORD streamIndex;
     DWORD flags;
     LONGLONG timestamp;
+    while (true)
+    {
+        IMFSample* sample = nullptr;
 
-    IMFSample* sample = nullptr;
+        hr = reader->ReadSample(
+            MF_SOURCE_READER_FIRST_VIDEO_STREAM,
+            0,
+            &streamIndex,
+            &flags,
+            &timestamp,
+            &sample
+        );
 
-    hr = reader->ReadSample(
-        MF_SOURCE_READER_FIRST_VIDEO_STREAM,
-        0,
-        &streamIndex,
-        &flags,
-        &timestamp,
-        &sample
-    );
+        if (FAILED(hr)) {
+            std::cout << "ReadSample failed (decoder probably failed)\n";
+            goto shutdown;
+        }
 
-    if (FAILED(hr)) {
-        std::cout << "ReadSample failed (decoder probably failed)\n";
-        goto shutdown;
+        if (flags & MF_SOURCE_READERF_ENDOFSTREAM) {
+            std::cout << "End of stream reached\n";
+            break;
+        }
+
+        if (sample) {
+            std::cout << "Frame timestamp: " << timestamp << "\n";
+            sample->Release();
+        }
+        else {
+            std::cout << "No sample returned\n";
+        }
     }
-
-    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) {
-        std::cout << "End of stream reached\n";
-    }
-
-    if (sample) {
-        std::cout << "Decoded frame successfully!\n";
-        sample->Release();
-    }
-    else {
-        std::cout << "No sample returned\n";
-    }
-
 shutdown:
 
     if (reader) reader->Release();
