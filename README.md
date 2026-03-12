@@ -26,6 +26,6 @@ By default, Visual Studio includes the Windows headers, but you need to **link t
 1. Right-click your project → **Properties**.
 2. Go to **Linker → Input → Additional Dependencies**.
 3. Add the following libraries:
-   ---
+   ```
    Mfplat.lib; Mfreadwrite.lib; Mf.lib; Mfuuid.lib; Strmiids.lib; Ole32.lib
-   ---
+   ```
